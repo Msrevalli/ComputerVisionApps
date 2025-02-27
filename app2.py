@@ -1,11 +1,15 @@
 import streamlit as st
+import os
+os.environ["LD_LIBRARY_PATH"] = "/usr/lib64:/usr/lib"
+
+os.environ["YOLO_VERBOSE"] = "False"
 import cv2
 import numpy as np
 import time
 from ultralytics import YOLO
 
 # Load YOLOv8 model
-model = YOLO("yolov8n.pt")  # Using YOLOv8 nano for real-time detection
+model = YOLO("yolov8s.pt")  # Using YOLOv8 nano for real-time detection
 
 st.title("🎥 Live Object Detection with YOLOv8")
 st.write("Select a camera and click 'Start' for real-time object detection.")
