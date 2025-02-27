@@ -1,4 +1,7 @@
 import streamlit as st
+import os
+os.environ["LD_LIBRARY_PATH"] = "/usr/lib64:/usr/lib"
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
