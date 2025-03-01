@@ -3,35 +3,58 @@ import numpy as np
 import streamlit as st
 from ultralytics import YOLO
 
-# Load YOLOv8 model
-model = YOLO("yolov8n.pt")
+# Load YOLOv8 Model
+model = YOLO("yolov8n.pt")  # Using YOLOv8 Nano for fast inference
 
-st.title("🎥 Real-Time Object Detection with YOLOv8")
-st.write("Webcam stream will appear below. Streamlit WebRTC allows camera access in Streamlit Cloud.")
+# Streamlit UI
+st.title("🔴 Real-Time Object Detection using YOLOv8 🚀")
+st.write("Click 'Start' to begin object detection and 'Stop' to end the video stream.")
 
-# Fix asyncio event loop issue
-try:
-    asyncio.get_running_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
+# Buttons for controlling the stream
+start_button = st.button("Start Video Stream")
+stop_button = st.button("Stop Video Stream")
 
-# Custom video processor for object detection
-class ObjectDetection(VideoProcessorBase):
-    def recv(self, frame):
-        frame = frame.to_ndarray(format="bgr24")  # Convert to OpenCV format
-        results = model(frame)  # Run YOLO detection
+# Initialize Video Capture
+cap = None
 
-        for result in results[0].boxes:
-            x1, y1, x2, y2 = result.xyxy[0]
-            conf = result.conf[0]
-            cls = int(result.cls[0])
-            label = model.names[cls]
+# Check if the Start button is pressed
+if start_button:
+    cap = cv2.VideoCapture(0)  # Start webcam video capture
+    frame_window = st.image([])
 
-            cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
-            cv2.putText(frame, f"{label} {conf:.2f}", (int(x1), int(y1) - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            st.warning("Failed to capture video")
+            break
 
-        return frame
+        # Run YOLOv8 object detection
+        results = model(frame)
 
-# Start WebRTC video streaming (Fixed version)
-webrtc_streamer(key="object-detection", video_processor_factory=ObjectDetection)
+        # Process detection results
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box
+                conf = float(box.conf[0])  # Confidence score
+                class_id = int(box.cls[0])  # Class ID
+                label = f"{model.names[class_id]}: {conf:.2f}"  # Class label
+
+                # Draw bounding box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+        # Convert frame to RGB (for Streamlit)
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_window.image(frame)
+
+        # Stop button logic
+        if stop_button:
+            cap.release()
+            cv2.destroyAllWindows()
+            st.warning("Video Stream Stopped.")
+            break
+
+# Release resources if Stop button is pressed
+if stop_button and cap is not None:
+    cap.release()
+    cv2.destroyAllWindows()
