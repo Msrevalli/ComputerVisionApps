@@ -1,48 +1,43 @@
-import streamlit as st
-import av
+from flask import Flask, Response
 import cv2
-import numpy as np
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
 from ultralytics import YOLO
 
-# Load YOLOv8 Model
-model = YOLO("yolov8n.pt")  # You can use "yolov8s.pt" for better accuracy
+app = Flask(__name__)
 
-# Streamlit UI
-st.title("📹 Real-Time Object Detection using YOLOv8 🚀")
-st.write("Enable your webcam and detect objects in real-time.")
+# Load YOLO model
+model = YOLO("yolov8n.pt")
 
-# WebRTC Configuration (Fix Streamlit Cloud Issues)
-rtc_config = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+# Open webcam
+cap = cv2.VideoCapture(0)
 
-# Video Transformer Class
-class YOLOv8VideoTransformer(VideoTransformerBase):
-    def __init__(self):
-        self.model = model
+def generate_frames():
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
 
-    def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
+        # Run YOLO object detection
+        results = model(frame)
 
-        # Run YOLOv8 object detection
-        results = self.model(img)
-
-        # Process detection results
+        # Draw bounding boxes
         for result in results:
             for box in result.boxes:
-                x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box
-                conf = float(box.conf[0])  # Confidence score
-                class_id = int(box.cls[0])  # Class ID
-                label = f"{model.names[class_id]}: {conf:.2f}"  # Class label
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                # Draw bounding box
-                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+        _, buffer = cv2.imencode('.jpg', frame)
+        frame_bytes = buffer.tobytes()
 
-        return img
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
 
-# WebRTC Streamer with RTC Configuration
-webrtc_streamer(
-    key="yolo-webcam",
-    video_transformer_factory=YOLOv8VideoTransformer,
-    rtc_configuration=rtc_config  # Enables WebRTC in Streamlit Cloud
-)
+@app.route('/video')
+def video_feed():
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/')
+def home():
+    return "<h1>Flask Video Streaming with YOLO</h1><img src='/video'>"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)

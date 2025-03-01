@@ -4,7 +4,6 @@ numpy
 matplotlib 
 pillow
 ultralytics
-torch
-torchvision
-streamlit-webrtc
-av
+flask
+numpy
+gunicorn
