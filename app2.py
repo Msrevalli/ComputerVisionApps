@@ -1,17 +1,21 @@
 import streamlit as st
+import av
 import cv2
 import numpy as np
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, RTCConfiguration
 from ultralytics import YOLO
 
-# Load YOLOv8 model
-model = YOLO("yolov8n.pt")  # Use 'yolov8s.pt' for better accuracy
+# Load YOLOv8 Model
+model = YOLO("yolov8n.pt")  # You can use "yolov8s.pt" for better accuracy
 
 # Streamlit UI
-st.title("📹 Real-Time Object Detection using YOLOv8 on Webcam")
-st.write("Enable your webcam and detect objects in real-time!")
+st.title("📹 Real-Time Object Detection using YOLOv8 🚀")
+st.write("Enable your webcam and detect objects in real-time.")
 
-# WebRTC Video Transformer Class
+# WebRTC Configuration (Fix Streamlit Cloud Issues)
+rtc_config = RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]})
+
+# Video Transformer Class
 class YOLOv8VideoTransformer(VideoTransformerBase):
     def __init__(self):
         self.model = model
@@ -22,7 +26,7 @@ class YOLOv8VideoTransformer(VideoTransformerBase):
         # Run YOLOv8 object detection
         results = self.model(img)
 
-        # Process detections
+        # Process detection results
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])  # Bounding box
@@ -36,8 +40,9 @@ class YOLOv8VideoTransformer(VideoTransformerBase):
 
         return img
 
-# Start Webcam Streaming with WebRTC
+# WebRTC Streamer with RTC Configuration
 webrtc_streamer(
     key="yolo-webcam",
-    video_transformer_factory=YOLOv8VideoTransformer
+    video_transformer_factory=YOLOv8VideoTransformer,
+    rtc_configuration=rtc_config  # Enables WebRTC in Streamlit Cloud
 )
