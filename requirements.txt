@@ -6,5 +6,4 @@ pillow
 ultralytics
 torch
 torchvision
-asyncio
 streamlit-webrtc
